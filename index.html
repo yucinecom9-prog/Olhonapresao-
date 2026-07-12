@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PressãoCerta - Controle de Pressão Arterial</title>
+<meta name="theme-color" content="#12181B">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --bg:#12181B;
+    --surface:#1B2328;
+    --surface2:#212B30;
+    --border:#2E3A3F;
+    --text:#EDEDE6;
+    --muted:#8FA0A3;
+    --pulse:#E85C4A;
+    --good:#7FB685;
+    --warn:#E0A458;
+    --crit:#FF5A48;
+    --low:#5B9BD5;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Work Sans',sans-serif;-webkit-tap-highlight-color:transparent;}
+  body{padding-bottom:90px;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0;}
+  .mono{font-family:'Space Grotesk',monospace;}
+  a{color:inherit;}
+  ::selection{background:var(--pulse);color:#12181B;}
+
+  /* HERO */
+  .hero{
+    padding:22px 20px 26px;
+    background:linear-gradient(180deg,#161D21 0%,#12181B 100%);
+    border-bottom:1px solid var(--border);
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .brand{display:flex;align-items:center;gap:9px;}
+  .brand-dot{width:9px;height:9px;border-radius:50%;background:var(--pulse);box-shadow:0 0 8px var(--pulse);}
+  .brand span{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+  .install-btn{
+    background:var(--surface2);border:1px solid var(--border);color:var(--text);
+    padding:7px 12px;border-radius:20px;font-size:12px;font-family:'Work Sans';
+    display:none;align-items:center;gap:6px;cursor:pointer;
+  }
+  .install-btn.show{display:inline-flex;}
+
+  .ecg-wrap{width:100%;height:56px;margin:6px 0 4px;overflow:hidden;}
+  .ecg-line{stroke:var(--pulse);stroke-width:2.4;fill:none;filter:drop-shadow(0 0 4px rgba(232,92,74,.5));}
+
+  .bp-display{display:flex;align-items:baseline;gap:10px;margin-top:6px;}
+  .bp-display .num{font-family:'Space Grotesk';font-weight:700;font-size:56px;line-height:1;}
+  .bp-display .unit{font-size:15px;color:var(--muted);}
+  .bp-sub{display:flex;gap:14px;margin-top:10px;align-items:center;flex-wrap:wrap;}
+  .badge{
+    padding:5px 12px;border-radius:20px;font-size:12.5px;font-weight:600;
+    letter-spacing:.02em;
+  }
+  .meta-line{font-size:12.5px;color:var(--muted);}
+
+  /* SECTIONS */
+  .section{padding:22px 20px 6px;}
+  .section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .section-title h2{font-size:19px;}
+  .eyebrow{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;display:block;}
+
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px;margin-bottom:14px;
+  }
+
+  /* FORM */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field.full{grid-column:1/-1;}
+  label{font-size:12px;color:var(--muted);}
+  input,select,textarea{
+    background:var(--surface2);border:1px solid var(--border);color:var(--text);
+    border-radius:10px;padding:11px 12px;font-size:16px;font-family:'Space Grotesk';
+    width:100%;
+  }
+  input::placeholder{color:#5B676A;font-family:'Work Sans';font-size:14px;}
+  select{font-family:'Work Sans';font-size:14px;}
+  textarea{font-family:'Work Sans';font-size:14px;resize:vertical;min-height:44px;}
+  .period-pills{display:flex;gap:8px;flex-wrap:wrap;}
+  .pill{
+    padding:9px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface2);
+    font-size:13px;cursor:pointer;color:var(--muted);
+  }
+  .pill.active{background:var(--pulse);border-color:var(--pulse);color:#fff;}
+
+  .btn{
+    width:100%;padding:14px;border-radius:12px;border:none;font-size:15px;font-weight:600;
+    font-family:'Work Sans';cursor:pointer;margin-top:6px;
+  }
+  .btn-primary{background:var(--pulse);color:#fff;}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px dashed var(--border);}
+  .btn-sm{width:auto;padding:8px 14px;font-size:13px;margin-top:0;}
+
+  /* STATS */
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 10px;text-align:center;}
+  .stat .v{font-family:'Space Grotesk';font-size:22px;font-weight:700;}
+  .stat .l{font-size:10.5px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.04em;}
+
+  /* CHART */
+  canvas#trendChart{width:100%;height:150px;display:block;}
+
+  /* ALARMS */
+  .alarm-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);}
+  .alarm-row:last-child{border-bottom:none;}
+  .alarm-time{font-family:'Space Grotesk';font-size:22px;font-weight:700;}
+  .alarm-label{font-size:12px;color:var(--muted);}
+  .switch{position:relative;width:42px;height:24px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{position:absolute;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:20px;cursor:pointer;transition:.2s;}
+  .slider:before{content:"";position:absolute;width:18px;height:18px;left:2px;top:2px;background:var(--muted);border-radius:50%;transition:.2s;}
+  input:checked + .slider{background:var(--good);border-color:var(--good);}
+  input:checked + .slider:before{transform:translateX(18px);background:#12181B;}
+  .del-x{color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;}
+
+  /* HISTORY */
+  .hist-item{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:13px 0;border-bottom:1px solid var(--border);
+  }
+  .hist-item:last-child{border-bottom:none;}
+  .hist-left .num{font-family:'Space Grotesk';font-size:20px;font-weight:700;}
+  .hist-left .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .hist-right{text-align:right;}
+  .dot-status{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;}
+  .empty{text-align:center;color:var(--muted);padding:26px 10px;font-size:14px;}
+
+  /* NAV */
+  .navbar{
+    position:fixed;bottom:0;left:0;right:0;background:rgba(27,35,40,.92);backdrop-filter:blur(10px);
+    border-top:1px solid var(--border);display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index:50;
+  }
+  .navbtn{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;
+    color:var(--muted);font-size:10.5px;cursor:pointer;background:none;border:none;font-family:'Work Sans';
+  }
+  .navbtn.active{color:var(--pulse);}
+  .navbtn svg{width:20px;height:20px;}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .toast{
+    position:fixed;bottom:90px;left:50%;transform:translateX(-50%);
+    background:var(--surface2);border:1px solid var(--border);padding:12px 18px;border-radius:12px;
+    font-size:13px;z-index:100;opacity:0;transition:.25s;pointer-events:none;max-width:88%;text-align:center;
+  }
+  .toast.show{opacity:1;bottom:100px;}
+
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;z-index:80;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--surface);border-radius:20px 20px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;border-top:1px solid var(--border);}
+
+  @media(min-width:640px){
+    body{max-width:480px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border);min-height:100vh;}
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-top">
+    <div class="brand"><span class="brand-dot" id="brandDot"></span><span>PressãoCerta</span></div>
+    <button class="install-btn" id="installBtn">⬇ Instalar</button>
+  </div>
+  <div class="ecg-wrap">
+    <svg viewBox="0 0 400 56" class="ecg-line" preserveAspectRatio="none" style="width:200%;animation:scroll 3.2s linear infinite;" id="ecgSvg">
+      <path d="M0,28 L40,28 L52,10 L64,48 L76,28 L120,28 L132,20 L142,36 L152,28 L400,28
+               M400,28 L440,28 L452,10 L464,48 L476,28 L520,28 L532,20 L542,36 L552,28 L800,28"/>
+    </svg>
+  </div>
+  <style>@keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}</style>
+
+  <div class="bp-display">
+    <span class="num mono" id="heroNum">--/--</span>
+    <span class="unit">mmHg</span>
+  </div>
+  <div class="bp-sub">
+    <span class="badge" id="heroBadge">Sem registros</span>
+    <span class="meta-line" id="heroMeta">Registre sua primeira aferição</span>
+  </div>
+</div>
+
+<!-- VIEW: REGISTRO -->
+<div class="view active" id="view-registro">
+  <div class="section">
+    <div class="section-title"><h2>Nova aferição</h2></div>
+    <div class="card">
+      <div class="field full" style="margin-bottom:12px;">
+        <label>Período</label>
+        <div class="period-pills" id="periodPills">
+          <div class="pill" data-p="Manhã">Manhã</div>
+          <div class="pill" data-p="Tarde">Tarde</div>
+          <div class="pill" data-p="Noite">Noite</div>
+          <div class="pill" data-p="Outro">Outro</div>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Sistólica (mmHg)</label><input type="number" id="inSys" placeholder="120" inputmode="numeric"></div>
+        <div class="field"><label>Diastólica (mmHg)</label><input type="number" id="inDia" placeholder="80" inputmode="numeric"></div>
+        <div class="field"><label>Pulso (bpm)</label><input type="number" id="inPulse" placeholder="72" inputmode="numeric"></div>
+        <div class="field"><label>Data e hora</label><input type="datetime-local" id="inWhen"></div>
+        <div class="field full"><label>Observações (opcional)</label><textarea id="inNotes" placeholder="Ex: após caminhada, em jejum..."></textarea></div>
+      </div>
+      <button class="btn btn-primary" id="btnSave">Salvar aferição</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title"><h2>Médias</h2>
+      <select id="avgRange" style="width:auto;padding:8px 10px;font-size:12px;">
+        <option value="7">7 dias</option>
+        <option value="30" selected>30 dias</option>
+        <option value="all">Tudo</option>
+      </select>
+    </div>
+    <div class="stat-grid" id="statGrid">
+      <div class="stat"><div class="v mono">--</div><div class="l">Sistólica</div></div>
+      <div class="stat"><div class="v mono">--</div><div class="l">Diastólica</div></div>
+      <div class="stat"><div class="v mono">--</div><div class="l">Pulso</div></div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <span class="eyebrow">Por período do dia</span>
+      <div id="periodAverages"></div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Tendência</span>
+      <canvas id="trendChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW: HISTORICO -->
+<div class="view" id="view-historico">
+  <div class="section">
+    <div class="section-title"><h2>Histórico</h2>
+      <button class="btn btn-secondary btn-sm" id="btnExportPdf">Exportar PDF</button>
+    </div>
+    <div class="card" id="historyCard">
+      <div class="empty">Nenhuma aferição registrada ainda.</div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW: ALARMES -->
+<div class="view" id="view-alarmes">
+  <div class="section">
+    <div class="section-title"><h2>Alarmes programados</h2></div>
+    <div class="card" id="notifyCard">
+      <span class="eyebrow">Notificações</span>
+      <p style="font-size:13px;color:var(--muted);margin:6px 0 10px;">Ative para receber um aviso no horário certo enquanto o app estiver aberto (em segundo plano no navegador).</p>
+      <button class="btn btn-secondary" id="btnNotifyPermission">Ativar notificações</button>
+    </div>
+    <div class="card">
+      <div class="form-grid" style="margin-bottom:12px;">
+        <div class="field"><label>Horário</label><input type="time" id="alarmTime" value="07:00"></div>
+        <div class="field"><label>Rótulo</label><input type="text" id="alarmLabel" placeholder="Ex: Manhã, jejum" style="font-family:'Work Sans';font-size:14px;"></div>
+      </div>
+      <button class="btn btn-primary" id="btnAddAlarm">Adicionar alarme</button>
+    </div>
+    <div class="card" id="alarmList">
+      <div class="empty">Nenhum alarme programado.</div>
+    </div>
+    <button class="btn btn-ghost" id="btnTestAlarm">🔔 Testar alarme agora</button>
+  </div>
+</div>
+
+<div class="navbar">
+  <button class="navbtn active" data-view="registro">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    Registro
+  </button>
+  <button class="navbtn" data-view="historico">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+    Histórico
+  </button>
+  <button class="navbtn" data-view="alarmes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 3h6"/></svg>
+    Alarmes
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- Utils ---------- */
+const $ = (s,el=document)=>el.querySelector(s);
+const $$ = (s,el=document)=>Array.from(el.querySelectorAll(s));
+const uid = ()=> Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad = n => n.toString().padStart(2,'0');
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+function nowLocalDatetimeValue(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+  return d.toISOString().slice(0,16);
+}
+
+function classify(sys,dia){
+  sys = Number(sys); dia = Number(dia);
+  if(sys>=180 || dia>=120) return {label:'Crise hipertensiva', color:'var(--crit)', dot:'#FF5A48'};
+  if(sys>=140 || dia>=90)  return {label:'Hipertensão estágio 2', color:'var(--crit)', dot:'#FF5A48'};
+  if(sys>=130 || dia>=80)  return {label:'Hipertensão estágio 1', color:'var(--warn)', dot:'#E0A458'};
+  if(sys>=120 && dia<80)   return {label:'Elevada', color:'var(--warn)', dot:'#E0A458'};
+  if(sys<90 || dia<60)     return {label:'Pressão baixa', color:'var(--low)', dot:'#5B9BD5'};
+  return {label:'Normal', color:'var(--good)', dot:'#7FB685'};
+}
+
+function currentPeriodGuess(){
+  const h = new Date().getHours();
+  if(h>=5 && h<12) return 'Manhã';
+  if(h>=12 && h<18) return 'Tarde';
+  return 'Noite';
+}
+
+/* ---------- Storage ---------- */
+const DB = {
+  readings(){ return JSON.parse(localStorage.getItem('pa_readings')||'[]'); },
+  saveReadings(a){ localStorage.setItem('pa_readings', JSON.stringify(a)); },
+  alarms(){ return JSON.parse(localStorage.getItem('pa_alarms')||'[]'); },
+  saveAlarms(a){ localStorage.setItem('pa_alarms', JSON.stringify(a)); },
+  fired(){ return JSON.parse(localStorage.getItem('pa_fired')||'{}'); },
+  saveFired(o){ localStorage.setItem('pa_fired', JSON.stringify(o)); }
+};
+
+/* ---------- View navigation ---------- */
+$$('.navbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $$('.navbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    $$('.view').forEach(v=>v.classList.remove('active'));
+    $('#view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='historico') renderHistory();
+    if(btn.dataset.view==='alarmes') renderAlarms();
+  });
+});
+
+/* ---------- Period pills ---------- */
+let selectedPeriod = currentPeriodGuess();
+function renderPills(){
+  $$('#periodPills .pill').forEach(p=>{
+    p.classList.toggle('active', p.dataset.p===selectedPeriod);
+  });
+}
+$('#periodPills').addEventListener('click', e=>{
+  const p = e.target.closest('.pill'); if(!p) return;
+  selectedPeriod = p.dataset.p; renderPills();
+});
+renderPills();
+$('#inWhen').value = nowLocalDatetimeValue();
+
+/* ---------- Save reading ---------- */
+$('#btnSave').addEventListener('click', ()=>{
+  const sys = Number($('#inSys').value), dia = Number($('#inDia').value);
+  const pulse = $('#inPulse').value ? Number($('#inPulse').value) : null;
+  const whenVal = $('#inWhen').value;
+  if(!sys || !dia){ toast('Informe sistólica e diastólica.'); return; }
+  if(!whenVal){ toast('Informe data e hora.'); return; }
+  const dt = new Date(whenVal);
+  const reading = {
+    id: uid(), sys, dia, pulse,
+    period: selectedPeriod,
+    notes: $('#inNotes').value.trim(),
+    date: whenVal.slice(0,10),
+    time: whenVal.slice(11,16),
+    ts: dt.getTime()
+  };
+  const arr = DB.readings(); arr.push(reading); arr.sort((a,b)=>b.ts-a.ts);
+  DB.saveReadings(arr);
+  $('#inSys').value=''; $('#inDia').value=''; $('#inPulse').value=''; $('#inNotes').value='';
+  $('#inWhen').value = nowLocalDatetimeValue();
+  toast('Aferição salva.');
+  refreshAll();
+});
+
+/* ---------- Hero + Stats + Chart ---------- */
+function refreshAll(){
+  const arr = DB.readings();
+  const latest = arr[0];
+  if(latest){
+    const c = classify(latest.sys, latest.dia);
+    $('#heroNum').textContent = `${latest.sys}/${latest.dia}`;
+    $('#heroBadge').textContent = c.label;
+    $('#heroBadge').style.background = c.color;
+    $('#heroBadge').style.color = (c.label==='Normal') ? '#12181B' : '#12181B';
+    $('#brandDot').style.background = c.dot;
+    const dt = new Date(latest.ts);
+    $('#heroMeta').textContent = `${latest.period} · ${dt.toLocaleDateString('pt-BR')} ${latest.time}`;
+  } else {
+    $('#heroNum').textContent = '--/--';
+    $('#heroBadge').textContent = 'Sem registros';
+    $('#heroBadge').style.background = 'var(--surface2)';
+    $('#heroMeta').textContent = 'Registre sua primeira aferição';
+  }
+  renderStats();
+  renderChart();
+  renderHistory();
+}
+
+function filterByRange(arr, range){
+  if(range==='all') return arr;
+  const days = Number(range);
+  const cutoff = Date.now() - days*86400000;
+  return arr.filter(r=>r.ts>=cutoff);
+}
+
+function avg(nums){ return nums.length ? Math.round(nums.reduce((a,b)=>a+b,0)/nums.length) : null; }
+
+function renderStats(){
+  const range = $('#avgRange').value;
+  const arr = filterByRange(DB.readings(), range);
+  const sys = avg(arr.map(r=>r.sys));
+  const dia = avg(arr.map(r=>r.dia));
+  const pulses = arr.filter(r=>r.pulse).map(r=>r.pulse);
+  const pul = avg(pulses);
+  const stats = $('#statGrid').children;
+  stats[0].querySelector('.v').textContent = sys ?? '--';
+  stats[1].querySelector('.v').textContent = dia ?? '--';
+  stats[2].querySelector('.v').textContent = pul ?? '--';
+
+  const periods = ['Manhã','Tarde','Noite','Outro'];
+  const wrap = $('#periodAverages'); wrap.innerHTML='';
+  let any=false;
+  periods.forEach(p=>{
+    const items = arr.filter(r=>r.period===p);
+    if(!items.length) return;
+    any=true;
+    const s = avg(items.map(r=>r.sys)), d = avg(items.map(r=>r.dia));
+    const row = document.createElement('div');
+    row.style.cssText='display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;';
+    row.innerHTML = `<span>${p}</span><span class="mono">${s}/${d} mmHg <span style="color:var(--muted);font-size:12px;">(${items.length})</span></span>`;
+    wrap.appendChild(row);
+  });
+  if(!any) wrap.innerHTML = '<div class="empty" style="padding:10px 0;">Sem dados suficientes ainda.</div>';
+}
+
+$('#avgRange').addEventListener('change', ()=>{ renderStats(); renderChart(); });
+
+function renderChart(){
+  const canvas = $('#trendChart');
+  const range = $('#avgRange').value;
+  const arr = filterByRange(DB.readings(), range).slice().sort((a,b)=>a.ts-b.ts);
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.clientWidth || 300, cssH = 150;
+  canvas.width = cssW*dpr; canvas.height = cssH*dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,cssW,cssH);
+  if(arr.length<2){
+    ctx.fillStyle = '#8FA0A3'; ctx.font='13px Work Sans'; ctx.textAlign='center';
+    ctx.fillText('Registre pelo menos 2 aferições para ver a tendência', cssW/2, cssH/2);
+    return;
+  }
+  const pad=18;
+  const vals = arr.flatMap(r=>[r.sys,r.dia]);
+  const min = Math.min(...vals)-8, max = Math.max(...vals)+8;
+  const x = i => pad + i*(cssW-2*pad)/(arr.length-1);
+  const y = v => cssH-pad - (v-min)*(cssH-2*pad)/(max-min);
+
+  function line(key,color){
+    ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=2.2; ctx.lineJoin='round';
+    arr.forEach((r,i)=>{ const px=x(i), py=y(r[key]); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+    ctx.stroke();
+    arr.forEach((r,i)=>{ ctx.beginPath(); ctx.arc(x(i),y(r[key]),2.6,0,7); ctx.fillStyle=color; ctx.fill(); });
+  }
+  line('dia', '#7FB685');
+  line('sys', '#E85C4A');
+}
+
+/* ---------- History ---------- */
+function renderHistory(){
+  const arr = DB.readings();
+  const card = $('#historyCard');
+  if(!arr.length){ card.innerHTML = '<div class="empty">Nenhuma aferição registrada ainda.</div>'; return; }
+  card.innerHTML='';
+  arr.forEach(r=>{
+    const c = classify(r.sys,r.dia);
+    const dt = new Date(r.ts);
+    const row = document.createElement('div');
+    row.className='hist-item';
+    row.innerHTML = `
+      <div class="hist-left">
+        <div class="num mono">${r.sys}/${r.dia}</div>
+        <div class="sub">${r.period} · ${dt.toLocaleDateString('pt-BR')} ${r.time}${r.pulse?` · ${r.pulse} bpm`:''}</div>
+        ${r.notes?`<div class="sub" style="opacity:.8;">${escapeHtml(r.notes)}</div>`:''}
+      </div>
+      <div class="hist-right">
+        <div><span class="dot-status" style="background:${c.dot}"></span><span style="font-size:12px;color:${c.dot}">${c.label}</span></div>
+        <div class="del-x" data-id="${r.id}">✕</div>
+      </div>`;
+    card.appendChild(row);
+  });
+  card.querySelectorAll('.del-x').forEach(x=>{
+    x.addEventListener('click', ()=>{
+      if(!confirm('Excluir esta aferição?')) return;
+      const arr2 = DB.readings().filter(r=>r.id!==x.dataset.id);
+      DB.saveReadings(arr2);
+      refreshAll();
+    });
+  });
+}
+
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------- PDF export ---------- */
+$('#btnExportPdf').addEventListener('click', ()=>{
+  const arr = DB.readings();
+  if(!arr.length){ toast('Nenhum dado para exportar.'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('Relatório de Pressão Arterial', 14, 18);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 25);
+
+  const range30 = filterByRange(arr,'30');
+  const s = avg(range30.map(r=>r.sys)), d = avg(range30.map(r=>r.dia));
+  doc.text(`Média (últimos 30 dias): ${s??'--'}/${d??'--'} mmHg`, 14, 32);
+
+  const rows = arr.map(r=>{
+    const c = classify(r.sys,r.dia);
+    const dt = new Date(r.ts);
+    return [dt.toLocaleDateString('pt-BR'), r.time, r.period, `${r.sys}/${r.dia}`, r.pulse??'-', c.label, r.notes||''];
+  });
+  doc.autoTable({
+    startY: 38,
+    head: [['Data','Hora','Período','PA (mmHg)','Pulso','Classificação','Obs.']],
+    body: rows,
+    styles:{ fontSize:8 },
+    headStyles:{ fillColor:[27,35,40] }
+  });
+  doc.save(`pressao-arterial-${new Date().toISOString().slice(0,10)}.pdf`);
+});
+
+/* ---------- Alarms ---------- */
+function renderAlarms(){
+  const alarms = DB.alarms();
+  const list = $('#alarmList');
+  if(!alarms.length){ list.innerHTML = '<div class="empty">Nenhum alarme programado.</div>'; return; }
+  list.innerHTML='';
+  alarms.sort((a,b)=>a.time.localeCompare(b.time)).forEach(a=>{
+    const row = document.createElement('div');
+    row.className='alarm-row';
+    row.innerHTML = `
+      <div>
+        <div class="alarm-time mono">${a.time}</div>
+        <div class="alarm-label">${a.label||'Aferição de pressão'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label class="switch"><input type="checkbox" ${a.active?'checked':''} data-id="${a.id}" class="alarm-toggle"><span class="slider"></span></label>
+        <div class="del-x" data-id="${a.id}">✕</div>
+      </div>`;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('.alarm-toggle').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const arr = DB.alarms();
+      const a = arr.find(x=>x.id===cb.dataset.id);
+      if(a){ a.active = cb.checked; DB.saveAlarms(arr); }
+    });
+  });
+  list.querySelectorAll('.del-x').forEach(x=>{
+    x.addEventListener('click', ()=>{
+      DB.saveAlarms(DB.alarms().filter(a=>a.id!==x.dataset.id));
+      renderAlarms();
+    });
+  });
+}
+
+$('#btnAddAlarm').addEventListener('click', ()=>{
+  const time = $('#alarmTime').value;
+  if(!time){ toast('Escolha um horário.'); return; }
+  const label = $('#alarmLabel').value.trim();
+  const arr = DB.alarms();
+  arr.push({ id: uid(), time, label, active: true });
+  DB.saveAlarms(arr);
+  $('#alarmLabel').value='';
+  toast('Alarme adicionado.');
+  renderAlarms();
+});
+
+$('#btnNotifyPermission').addEventListener('click', async ()=>{
+  if(!('Notification' in window)){ toast('Notificações não suportadas neste navegador.'); return; }
+  const perm = await Notification.requestPermission();
+  if(perm==='granted'){ toast('Notificações ativadas.'); $('#btnNotifyPermission').textContent='Notificações ativas ✓'; }
+  else toast('Permissão negada.');
+});
+
+function beep(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type='sine'; o.frequency.value=880;
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.5);
+    o.start(); o.stop(ctx.currentTime+0.55);
+  }catch(e){}
+}
+
+function fireAlarm(label){
+  beep();
+  if('Notification' in window && Notification.permission==='granted'){
+    try{ new Notification('PressãoCerta ⏰', { body: label || 'Hora de aferir sua pressão arterial.', icon:'icons/icon-192.png' }); }catch(e){}
+  }
+  toast('⏰ ' + (label || 'Hora de aferir sua pressão!'));
+}
+
+$('#btnTestAlarm').addEventListener('click', ()=> fireAlarm('Teste de alarme'));
+
+function checkAlarms(){
+  const now = new Date();
+  const hhmm = pad(now.getHours())+':'+pad(now.getMinutes());
+  const today = now.toISOString().slice(0,10);
+  const fired = DB.fired();
+  const alarms = DB.alarms();
+  alarms.forEach(a=>{
+    if(!a.active) return;
+    if(a.time===hhmm && fired[a.id]!==today){
+      fireAlarm(a.label);
+      fired[a.id]=today;
+      DB.saveFired(fired);
+    }
+  });
+}
+setInterval(checkAlarms, 20000);
+checkAlarms();
+
+/* ---------- Install prompt ---------- */
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault(); deferredPrompt = e;
+  $('#installBtn').classList.add('show');
+});
+$('#installBtn').addEventListener('click', async ()=>{
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  $('#installBtn').classList.remove('show');
+});
+window.addEventListener('appinstalled', ()=>{ $('#installBtn').classList.remove('show'); toast('App instalado.'); });
+
+/* ---------- Service worker ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+/* ---------- Init ---------- */
+refreshAll();
+</script>
+</body>
+</html>
